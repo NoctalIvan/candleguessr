@@ -1,6 +1,6 @@
 # Chart Challenge
 
-From [The crypto craftsman](https://thecryptocraftsman.com/)
+From [The crypto craftsman](https://thecryptocraftsman.com/blog/4)
 
 ## Concept
 
