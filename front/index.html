@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.x/css/materialdesignicons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.24.0/axios.min.js" integrity="sha512-u9akINsQsAkG9xjc1cnGF4zw5TFDwkxuc9vUp5dltDWYCSmyd0meygbvgXrlc/z7/o4a19Fb5V0OUE58J7dcyw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
+</head>
+<body>
+  <div id="app">
+    <v-app style="background-color: #2a2a2a">
+      <v-main>
+        <v-container fluid class="text-center" style="width: 1300px">
+          <v-card dark style="background-color: #424242">
+            <v-card-title>CandleGuessr</v-card-title>
+            <v-card-text style="position: relative;">
+              <v-progress-linear v-if="chartLoading" indeterminate style="position: absolute; top: 0; z-index: 999"></v-progress-linear>
+              <div id="chart" style="width: 1200px; height: 365px;margin: 0 auto;"></div>
+
+              <div>
+                <v-btn v-if="chartChecked":disabled="chartLoading" color="primary" @click="getChart">
+                  {{pastRounds.length > 0 ? 'Next chart' : 'Start !'}}
+                </v-btn>
+              </div>
+
+              <v-simple-table v-if="round || pastRounds.length > 0" style="font-family: monospace; background-color: #424242">
+                <template >
+                  <thead>
+                    <tr>
+                      <th>Round</th>
+                      <th>Buy price</th>
+                      <th>Take profit</th>
+                      <th>Stop loss</th>
+                      <th>Close price</th>
+                      <th>result</th>
+                      <th>Gain</th>
+                      <th>Total Gain</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="round">
+                      <td>{{round.round + 1}}</td>
+                      <td>{{round.buyPrice.toFixed(4)}}</td>
+                      <td>
+                        <v-text-field 
+                          hide-details
+                          outlined
+                          color="green"
+                          dense
+                          v-model="round.takeProfit"
+                          :suffix="tpSuffix"
+                          @input="(val) => onTpChange(val)"
+                        ></v-text-field>
+                      </td>
+                      <td>
+                        <v-text-field 
+                          hide-details
+                          outlined
+                          color="red"
+                          dense
+                          v-model="round.stopLoss"
+                          :suffix="slSuffix"
+                          @input="(val) => onSlChange(val)"
+                        ></v-text-field>
+                      </td>
+                      <td colspan="4" style="text-align: right;">
+                        <v-btn dense :disabled="chartLoading" @click="checkChart">Check result</v-btn>
+                        <v-btn text dense :disabled="chartLoading" @click="skipChart">skip</v-btn>
+                      </td>
+                    </tr>
+
+                    <tr v-for="r of reversedPastRounds" :key="r.round">
+                      <td>{{r.round + 1}}</td>
+                      <td>{{r.buyPrice?.toFixed(4)}}</td>
+                      <td>{{r.takeProfit ? (+r.takeProfit).toFixed(4) : ''}}</td>
+                      <td>{{r.stopLoss ? (+r.stopLoss).toFixed(4) : ''}}</td>
+                      <td>{{r.closePrice?.toFixed(4)}}</td>
+                      <td>
+                        <v-chip :color="r.result == 'take profit' ? 'green' : r.result == 'stop loss' ? 'red' : 'gray'">{{r.result}}</v-chip>
+                      </td>
+                      <td>{{(100 * r.gain).toFixed(2)}}%</td>
+                      <td>{{(100 * r.totalGain).toFixed(2)}}%</td>
+                    </tr>
+                  </tbody>
+                </template>
+              </v-simple-table>
+            </v-card-text>
+          </v-card>
+        </v-container>
+      </v-main>
+    </v-app>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+  <script src="./candleRenderer.js"></script>
+
+  <script>
+    new Vue({
+      el: '#app',
+      vuetify: new Vuetify(),
+      data () {
+        return {
+          round: null,
+          pastRounds: [],
+
+          chartLoading: false,
+          chartChecked: true,
+          chartCode: '',
+        }
+      },
+      computed: {
+        tpSuffix() {
+          return (100 * (this.round.takeProfit / this.round.buyPrice - 1)).toFixed(2) + '%'
+        },
+        slSuffix() {
+          return (100 * (this.round.stopLoss / this.round.buyPrice - 1)).toFixed(2) + '%'
+        },
+        reversedPastRounds() {
+          return this.pastRounds && JSON.parse(JSON.stringify(this.pastRounds)).reverse()
+        }
+      },
+      methods: {
+        async getChart() {
+          this.chartLoading = true
+          const {data: {chart, code}} = await axios.get('http://localhost:3334/chart/new')
+          this.chartChecked = false
+          this.chartCode = code
+          displayChart(chart)
+          this.round = {
+            round: this.pastRounds.length,
+            buyPrice: +chart.slice(-1)[0][3].toFixed(4),
+            takeProfit: (+chart.slice(-1)[0][3] * 1.03).toFixed(4),
+            stopLoss: (+chart.slice(-1)[0][3] * 0.97).toFixed(4),
+            closePrice: null,
+            result: null,
+            gain: null,
+            totalGain: null,
+          }
+
+          setTp(this.round.takeProfit)
+          setSl(this.round.stopLoss)
+          this.chartLoading = false
+        },
+
+        async checkChart() {
+          this.chartLoading = true
+          const {data: {chart: chartData, symbol, time}} = await axios.get('http://localhost:3334/chart/check?code=' + this.chartCode)
+          displayChart(chartData)
+
+          const round = JSON.parse(JSON.stringify(this.round))
+          round.closePrice = chartData.slice(-1)[0][3]
+          const hitTp = chartData.slice(30).findIndex(price => price[1] >= round.takeProfit)
+          const hitSl = chartData.slice(30).findIndex(price => price[2] <= round.stopLoss)
+          if(hitTp == -1 && hitSl == -1) {
+            round.result = 'sell at end'
+            round.gain = chartData.slice(-1)[0][3] / round.buyPrice - 1
+          } else if(hitTp > -1 && (hitSl == -1 || hitTp <= hitSl)) {
+            round.result = 'take profit'
+            round.gain = round.takeProfit / round.buyPrice - 1
+          } else {
+            round.result = "stop loss"
+            round.gain = round.stopLoss / round.buyPrice - 1
+          }
+
+          round.totalGain = (this.pastRounds.slice(-1)[0]?.totalGain || 0) + round.gain
+          
+          this.pastRounds.push(round)
+          this.round = null
+
+          this.chartLoading = false
+          this.chartChecked = true
+        },
+
+        async skipChart() {
+          await this.getChart()
+        },
+
+        onTpChange(val) {
+          setTp(val)
+        },
+        onSlChange(val) {
+          setSl(val)
+        }
+      }
+    })
+  </script>
+</body>
+</html>
