@@ -125,7 +125,7 @@
       methods: {
         async getChart() {
           this.chartLoading = true
-          const {data: {chart, code}} = await axios.get('http://localhost:3334/chart/new')
+          const {data: {chart, code}} = await axios.get('/chart/new')
           this.chartChecked = false
           this.chartCode = code
           displayChart(chart)
@@ -147,7 +147,7 @@
 
         async checkChart() {
           this.chartLoading = true
-          const {data: {chart: chartData, symbol, time}} = await axios.get('http://localhost:3334/chart/check?code=' + this.chartCode)
+          const {data: {chart: chartData, symbol, time}} = await axios.get('/chart/check?code=' + this.chartCode)
           displayChart(chartData)
 
           const round = JSON.parse(JSON.stringify(this.round))
