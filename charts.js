@@ -3,7 +3,7 @@ const axios = require('axios')
 const Cryptr = require('cryptr')
 const cryptr = new Cryptr('TrAu3q+wKx8@68(W')
 
-const tickers = require('./tickers.json').slice(0, 500)
+const tickers = require('./tickers.json').filter(t => t.symbol.slice(-4) == 'USDT')
 
 const getChart = async (symbol, startTime, limit = 30) => {
     const {data} = await axios.get(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1h&limit=${limit}&startTime=${startTime}`)
