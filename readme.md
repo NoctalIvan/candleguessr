@@ -2,6 +2,8 @@
 
 From [The crypto craftsman](https://thecryptocraftsman.com/blog/4)
 
+Try it here : [https://candleguessr.herokuapp.com/](https://candleguessr.herokuapp.com/)
+
 ## Concept
 
 - Get a random crypto candlestick chart, daily, not labeled
